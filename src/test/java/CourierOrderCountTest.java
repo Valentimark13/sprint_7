@@ -2,75 +2,78 @@ import io.qameta.allure.Description;
 import io.qameta.allure.Step;
 import io.qameta.allure.junit4.DisplayName;
 import io.restassured.response.Response;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
-import services.Courier;
-import services.Order;
+import services.CourierApi;
+import services.OrderApi;
 
-import static io.restassured.RestAssured.given;
+import static org.apache.http.HttpStatus.*;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 
 public class CourierOrderCountTest {
 
-    private final String BASE_URL = "https://qa-scooter.praktikum-services.ru/api/v1/courier";
+    private final CourierApi courierApi = new CourierApi();
+    private final OrderApi orderApi = new OrderApi();
+    private String courierId;  // Сохраняем ID курьера для последующего удаления
+
+    private String login;
+    private String password;
+    private String firstName;
+
+    @Before
+    public void setUp() {
+        // Генерация данных для курьера перед каждым тестом
+        login = CourierApi.generateRandomString(8);
+        password = CourierApi.generateRandomString(8);
+        firstName = CourierApi.generateRandomString(4);
+
+        // Создание курьера
+        courierApi.createCourierRequest(login, password, firstName)
+                .then()
+                .statusCode(SC_CREATED)
+                .body("ok", equalTo(true));
+
+        // Авторизация и получение ID курьера для последующего удаления
+        courierId = courierApi.login(login, password).jsonPath().getString("id");
+    }
+
+    @After
+    public void tearDown() {
+        // Удаление созданного курьера после каждого теста
+        if (courierId != null) {
+            Response response = courierApi.deleteCourier(courierId);
+            response.then().statusCode(SC_OK).body("ok", equalTo(true));
+        }
+    }
 
     @Test
     @DisplayName("Получение количества заказов для курьера с существующим id")
     @Description("Проверка успешного получения количества заказов для курьера с валидным ID")
     public void canGetOrderCountForExistingCourier() {
-        Courier courier = new Courier();
-        Order order = new Order();
+        // Создаем заказ и связываем его с курьером
+        int orderId = orderApi.createOrder().jsonPath().getInt("track");
+        orderApi.acceptOrder(orderId, Integer.parseInt(courierId));
 
-        String login = Courier.generateRandomString(8);
-        String password = Courier.generateRandomString(8);
-        String name = Courier.generateRandomString(4);
-
-        createCourier(login, password, name);
-
-        int courierId = loginCourierAndGetId(login, password);
-        int orderId = createAndAcceptOrder(order, courierId);
-
-        Response response = getOrderCount(courierId);
+        // Получаем количество заказов для курьера
+        Response response = courierApi.orderCount(Integer.parseInt(courierId));
 
         response.then()
-                .statusCode(200)
-                .body("id", equalTo(String.valueOf(courierId)))
+                .statusCode(SC_OK)
+                .body("id", equalTo(courierId))
                 .body("ordersCount", notNullValue());  // Проверка на наличие ordersCount
-    }
-
-    @Step("Создание курьера с логином {0}, паролем {1} и именем {2}")
-    private void createCourier(String login, String password, String name) {
-        new Courier().createCourierRequest(login, password, name);
-    }
-
-    @Step("Авторизация курьера и получение его ID")
-    private int loginCourierAndGetId(String login, String password) {
-        return new Courier().login(login, password).jsonPath().getInt("id");
-    }
-
-    @Step("Создание заказа и его привязка к курьеру с ID {1}")
-    private int createAndAcceptOrder(Order order, int courierId) {
-        int orderId = order.createOrder().jsonPath().getInt("track");
-        order.acceptOrder(orderId, courierId);
-        return orderId;
-    }
-
-    @Step("Получение количества заказов для курьера с ID {0}")
-    private Response getOrderCount(int courierId) {
-        return new Courier().orderCount(courierId);
     }
 
     @Test
     @DisplayName("Получение ошибки 400 при запросе без ID курьера")
     @Description("Проверка ошибки 400 при попытке получения количества заказов без указания ID курьера")
     public void shouldReturnErrorWithoutCourierId() {
-        Response response = given()
-                .header("Content-type", "application/json")
-                .when()
-                .get(BASE_URL + "//ordersCount");
+        // Пытаемся получить количество заказов без ID
+        Response response = courierApi.orderCountWithoutId();
 
         response.then()
-                .statusCode(400)
+                .statusCode(SC_BAD_REQUEST)  // Используем SC_BAD_REQUEST для статуса 400
                 .body("message", equalTo("Недостаточно данных для поиска"));
     }
 
@@ -80,13 +83,11 @@ public class CourierOrderCountTest {
     public void shouldReturnNotFoundForNonExistentCourier() {
         int nonExistentId = 99999;  // Используем несуществующий ID курьера
 
-        Response response = given()
-                .header("Content-type", "application/json")
-                .when()
-                .get(BASE_URL + "/" + nonExistentId + "/ordersCount");
+        // Пытаемся получить количество заказов для несуществующего курьера
+        Response response = courierApi.orderCount(nonExistentId);
 
         response.then()
-                .statusCode(404)
+                .statusCode(SC_NOT_FOUND)  // Используем SC_NOT_FOUND для статуса 404
                 .body("message", equalTo("Курьер не найден"));
     }
 }

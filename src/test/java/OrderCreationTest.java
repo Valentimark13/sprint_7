@@ -2,65 +2,65 @@ import io.qameta.allure.Description;
 import io.qameta.allure.Step;
 import io.qameta.allure.junit4.DisplayName;
 import io.restassured.response.Response;
+import org.junit.After;
 import org.junit.Test;
-import services.Order;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import services.OrderApi;
 
-import static io.restassured.RestAssured.given;
+import java.util.Arrays;
+import java.util.Collection;
+
+import static org.apache.http.HttpStatus.*;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 
+@RunWith(Parameterized.class)
 public class OrderCreationTest {
 
+    @Parameterized.Parameter
+    public String color;
+
+    private String track;  // Переменная для хранения номера заказа
+
+    @Parameterized.Parameters(name = "{index}: Test with color={0}")
+    public static Collection<Object[]> data() {
+        return Arrays.asList(new Object[][]{
+                {"BLACK"}, {"GREY"}, {"BLACK, GREY"}, {""}
+        });
+    }
+
     @Test
-    @DisplayName("Создание заказа с цветом BLACK")
-    @Description("Проверка успешного создания заказа с указанием цвета BLACK")
-    public void canCreateOrderWithBlackColor() {
-        Response response = createOrderWithColor("BLACK");
+    @DisplayName("Создание заказа с разными цветами")
+    @Description("Проверка успешного создания заказа с указанием цвета")
+    public void canCreateOrderWithColor() {
+        Response response = createOrder(color);
 
         response.then()
-                .statusCode(201)
+                .statusCode(SC_CREATED)
                 .body("track", notNullValue());  // Проверяем, что track возвращается и не null
+
+        // Сохраняем track для удаления заказа после теста
+        track = response.jsonPath().getString("track");
     }
 
     @Step("Создание заказа с цветом {0}")
-    private Response createOrderWithColor(String color) {
-        return (new Order()).createOrder(color);
+    private Response createOrder(String color) {
+        if (color.isEmpty()) {
+            return new OrderApi().createOrder();
+        } else {
+            return new OrderApi().createOrder(color);
+        }
     }
 
-    @Test
-    @DisplayName("Создание заказа с цветом GREY")
-    @Description("Проверка успешного создания заказа с указанием цвета GREY")
-    public void canCreateOrderWithGreyColor() {
-        Response response = createOrderWithColor("GREY");
-
-        response.then()
-                .statusCode(201)
-                .body("track", notNullValue());  // Проверяем, что track возвращается и не null
-    }
-
-    @Test
-    @DisplayName("Создание заказа с двумя цветами: BLACK и GREY")
-    @Description("Проверка успешного создания заказа с двумя цветами: BLACK и GREY")
-    public void canCreateOrderWithBothColors() {
-        Response response = createOrderWithColor("BLACK, GREY");
-
-        response.then()
-                .statusCode(201)
-                .body("track", notNullValue());  // Проверяем, что track возвращается и не null
-    }
-
-    @Test
-    @DisplayName("Создание заказа без указания цвета")
-    @Description("Проверка успешного создания заказа без указания цвета")
-    public void canCreateOrderWithoutColor() {
-        Response response = createOrderWithoutColor();
-
-        response.then()
-                .statusCode(201)
-                .body("track", notNullValue());  // Проверяем, что track возвращается и не null
-    }
-
-    @Step("Создание заказа без указания цвета")
-    private Response createOrderWithoutColor() {
-        return (new Order()).createOrder();
+    @After
+    @Step("Удаление созданного заказа после теста")
+    public void tearDown() {
+        if (track != null) {
+            new OrderApi().cancelOrder(track)  // Метод для удаления заказа по track
+                    .then()
+                    .statusCode(SC_OK)  // Проверяем, что заказ успешно удален
+                    .body("ok", equalTo(true));
+        }
     }
 }
