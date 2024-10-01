@@ -1,3 +1,4 @@
+import dto.CourierDTO;
 import io.qameta.allure.Description;
 import io.qameta.allure.junit4.DisplayName;
 import io.restassured.response.Response;
@@ -24,15 +25,16 @@ public class CourierDeleteTest {
         login = CourierApi.generateRandomString(8);
         password = CourierApi.generateRandomString(8);
         name = CourierApi.generateRandomString(4);
+        CourierDTO dto = new CourierDTO(login, password, name);
 
         // Создание курьера перед тестом
-        courierApi.createCourierRequest(login, password, name)
+        courierApi.createCourierRequest(dto)
                 .then()
                 .statusCode(SC_CREATED)
                 .body("ok", equalTo(true));
 
         // Авторизация и получение ID курьера для последующего удаления
-        courierId = courierApi.login(login, password).jsonPath().getString("id");
+        courierId = courierApi.login(dto).jsonPath().getString("id");
     }
 
     @After

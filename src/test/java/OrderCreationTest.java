@@ -1,3 +1,4 @@
+import dto.OrderDTO;
 import io.qameta.allure.Description;
 import io.qameta.allure.Step;
 import io.qameta.allure.junit4.DisplayName;
@@ -47,9 +48,11 @@ public class OrderCreationTest {
     @Step("Создание заказа с цветом {0}")
     private Response createOrder(String color) {
         if (color.isEmpty()) {
-            return new OrderApi().createOrder();
+            return new OrderApi().createOrder(new OrderDTO("Naruto", "Uchiha", "Konoha, 142 apt.", 4, "+7 800 355 35 35", 5, "2020-06-06",
+                    "Saske, come back to Konoha", null));
         } else {
-            return new OrderApi().createOrder(color);
+            return new OrderApi().createOrder(new OrderDTO("Naruto", "Uchiha", "Konoha, 142 apt.", 4, "+7 800 355 35 35", 5, "2020-06-06",
+                    "Saske, come back to Konoha", new String[]{color}));
         }
     }
 

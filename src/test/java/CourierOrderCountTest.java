@@ -1,5 +1,6 @@
+import dto.CourierDTO;
+import dto.OrderDTO;
 import io.qameta.allure.Description;
-import io.qameta.allure.Step;
 import io.qameta.allure.junit4.DisplayName;
 import io.restassured.response.Response;
 import org.junit.After;
@@ -28,15 +29,16 @@ public class CourierOrderCountTest {
         login = CourierApi.generateRandomString(8);
         password = CourierApi.generateRandomString(8);
         firstName = CourierApi.generateRandomString(4);
+        CourierDTO dto = new CourierDTO(login, password, firstName);
 
         // Создание курьера
-        courierApi.createCourierRequest(login, password, firstName)
+        courierApi.createCourierRequest(dto)
                 .then()
                 .statusCode(SC_CREATED)
                 .body("ok", equalTo(true));
 
         // Авторизация и получение ID курьера для последующего удаления
-        courierId = courierApi.login(login, password).jsonPath().getString("id");
+        courierId = courierApi.login(dto).jsonPath().getString("id");
     }
 
     @After
@@ -52,12 +54,13 @@ public class CourierOrderCountTest {
     @DisplayName("Получение количества заказов для курьера с существующим id")
     @Description("Проверка успешного получения количества заказов для курьера с валидным ID")
     public void canGetOrderCountForExistingCourier() {
-        // Создаем заказ и связываем его с курьером
-        int orderId = orderApi.createOrder().jsonPath().getInt("track");
+        OrderDTO dto = new OrderDTO("Naruto", "Uchiha", "Konoha, 142 apt.", 4, "+7 800 355 35 35", 5, "2020-06-06",
+                "Saske, come back to Konoha", null);
+        int orderId = orderApi.createOrder(dto).jsonPath().getInt("track");
         orderApi.acceptOrder(orderId, Integer.parseInt(courierId));
 
         // Получаем количество заказов для курьера
-        Response response = courierApi.orderCount(Integer.parseInt(courierId));
+        Response response = orderApi.orderCount(Integer.parseInt(courierId));
 
         response.then()
                 .statusCode(SC_OK)
@@ -70,7 +73,7 @@ public class CourierOrderCountTest {
     @Description("Проверка ошибки 400 при попытке получения количества заказов без указания ID курьера")
     public void shouldReturnErrorWithoutCourierId() {
         // Пытаемся получить количество заказов без ID
-        Response response = courierApi.orderCountWithoutId();
+        Response response = orderApi.orderCountWithoutId();
 
         response.then()
                 .statusCode(SC_BAD_REQUEST)  // Используем SC_BAD_REQUEST для статуса 400
@@ -82,9 +85,8 @@ public class CourierOrderCountTest {
     @Description("Проверка ошибки 404 при запросе количества заказов для несуществующего ID курьера")
     public void shouldReturnNotFoundForNonExistentCourier() {
         int nonExistentId = 99999;  // Используем несуществующий ID курьера
-
         // Пытаемся получить количество заказов для несуществующего курьера
-        Response response = courierApi.orderCount(nonExistentId);
+        Response response = orderApi.orderCount(nonExistentId);
 
         response.then()
                 .statusCode(SC_NOT_FOUND)  // Используем SC_NOT_FOUND для статуса 404

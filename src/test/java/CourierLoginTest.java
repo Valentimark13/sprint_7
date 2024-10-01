@@ -1,3 +1,4 @@
+import dto.CourierDTO;
 import io.qameta.allure.Description;
 import io.qameta.allure.Step;
 import io.qameta.allure.junit4.DisplayName;
@@ -13,7 +14,7 @@ import static org.hamcrest.Matchers.equalTo;
 public class CourierLoginTest {
 
     private final CourierApi courierApi = new CourierApi();
-    private String courierId;  // Переменная для хранения ID курьера
+    private String courierId;
 
     private String login;
     private String password;
@@ -25,15 +26,16 @@ public class CourierLoginTest {
         login = CourierApi.generateRandomString(8);
         password = CourierApi.generateRandomString(8);
         name = CourierApi.generateRandomString(4);
+        CourierDTO dto = new CourierDTO(login, password, name);
 
         // Создание курьера перед каждым тестом
-        courierApi.createCourierRequest(login, password, name)
+        courierApi.createCourierRequest(dto)
                 .then()
                 .statusCode(SC_CREATED)
                 .body("ok", equalTo(true));
 
         // Авторизация и получение ID курьера для последующего удаления
-        courierId = courierApi.login(login, password).jsonPath().getString("id");
+        courierId = courierApi.login(dto).jsonPath().getString("id");
     }
 
     @After
@@ -49,8 +51,8 @@ public class CourierLoginTest {
     @DisplayName("Курьер может успешно авторизоваться")
     @Description("Проверка успешной авторизации курьера с валидными данными")
     public void courierCanLoginSuccessfully() {
-        // Пытаемся авторизоваться
-        Response response = courierApi.login(login, password);
+        CourierDTO dto = new CourierDTO(login, password, name);
+        Response response = courierApi.login(dto);
         response.then().statusCode(SC_OK);  // Используем SC_OK для статуса 200
     }
 
@@ -59,8 +61,8 @@ public class CourierLoginTest {
     @Description("Проверка ошибки авторизации при отсутствии логина")
     public void cannotLoginWithoutLogin() {
         // Пытаемся авторизоваться без логина
-        String json = "{\"password\": \"1234\"}";
-        Response response = courierApi.loginWithoutLogin(json);
+        CourierDTO dto = new CourierDTO(null, password, name);
+        Response response = courierApi.login(dto);
 
         response.then()
                 .statusCode(SC_BAD_REQUEST)  // Используем SC_BAD_REQUEST для статуса 400
@@ -71,9 +73,8 @@ public class CourierLoginTest {
     @DisplayName("Ошибка при отсутствии пароля")
     @Description("Проверка ошибки авторизации при отсутствии пароля")
     public void cannotLoginWithoutPassword() {
-        // Пытаемся авторизоваться без пароля
-        Response response = courierApi.loginWithoutPassword();
-
+        CourierDTO dto = new CourierDTO(login, null, name);
+        Response response = courierApi.login(dto);
         response.then()
                 .statusCode(SC_BAD_REQUEST)  // Используем SC_BAD_REQUEST для статуса 400
                 .body("message", equalTo("Недостаточно данных для входа"));
@@ -83,9 +84,8 @@ public class CourierLoginTest {
     @DisplayName("Ошибка при неправильном логине или пароле")
     @Description("Проверка ошибки авторизации с неправильным логином или паролем")
     public void cannotLoginWithInvalidCredentials() {
-        // Пытаемся авторизоваться с некорректными данными
-        String json = "{\"login\": \"wrong_login__09812093801293809-A_)@0diq9ias09di\", \"password\": \"wrong_password\"}";
-        Response response = courierApi.loginWithInvalidCredentials(json);
+        CourierDTO dto = new CourierDTO("wrong_login__09812093801293809", "wrong_password", name);
+        Response response = courierApi.login(dto);
 
         response.then()
                 .statusCode(SC_NOT_FOUND)  // Используем SC_NOT_FOUND для статуса 404
