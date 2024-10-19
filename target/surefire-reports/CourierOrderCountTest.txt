@@ -1,0 +1,27 @@
+-------------------------------------------------------------------------------
+Test set: CourierOrderCountTest
+-------------------------------------------------------------------------------
+Tests run: 3, Failures: 3, Errors: 0, Skipped: 0, Time elapsed: 8.658 s <<< FAILURE! - in CourierOrderCountTest
+shouldReturnErrorWithoutCourierId(CourierOrderCountTest)  Time elapsed: 0.63 s  <<< FAILURE!
+java.lang.AssertionError: 
+1 expectation failed.
+Expected status code <400> but was <404>.
+
+	at CourierOrderCountTest.shouldReturnErrorWithoutCourierId(CourierOrderCountTest.java:73)
+
+shouldReturnNotFoundForNonExistentCourier(CourierOrderCountTest)  Time elapsed: 0.608 s  <<< FAILURE!
+java.lang.AssertionError: 
+1 expectation failed.
+JSON path message doesn't match.
+Expected: Курьер не найден
+  Actual: Not Found.
+
+	at CourierOrderCountTest.shouldReturnNotFoundForNonExistentCourier(CourierOrderCountTest.java:90)
+
+canGetOrderCountForExistingCourier(CourierOrderCountTest)  Time elapsed: 7.42 s  <<< FAILURE!
+java.lang.AssertionError: 
+1 expectation failed.
+Expected status code <200> but was <404>.
+
+	at CourierOrderCountTest.canGetOrderCountForExistingCourier(CourierOrderCountTest.java:36)
+
